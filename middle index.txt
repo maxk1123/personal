@@ -1,0 +1,23 @@
+def get_middle_portfolio(frontier_returns, frontier_volatility, frontier_weights):
+    # Get the index of the minimum volatility and maximum return portfolios
+    min_vol_index = np.argmin(frontier_volatility)
+    max_return_index = np.argmax(frontier_returns)
+    
+    # Compute the middle index between the two
+    middle_index = (min_vol_index + max_return_index) // 2
+    
+    middle_return = frontier_returns[middle_index]
+    middle_volatility = frontier_volatility[middle_index]
+    middle_weights = frontier_weights[middle_index]
+    
+    return middle_return, middle_volatility, middle_weights
+
+# Get the middle portfolio
+middle_return, middle_volatility, middle_weights = get_middle_portfolio(frontier_returns, frontier_volatility, frontier_weights)
+
+# Output the middle optimal portfolio
+print("Middle Optimal Portfolio:")
+print(f"Annualized Return: {middle_return}")
+print(f"Annualized Volatility: {middle_volatility}")
+print(f"Portfolio Weights: {middle_weights}")
+print("----------")
