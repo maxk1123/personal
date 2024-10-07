@@ -1,0 +1,35 @@
+# Step 11: Identify the portfolio with the lowest annualized volatility
+def get_min_volatility_portfolio(frontier_returns, frontier_volatility, frontier_weights):
+    min_vol_index = np.argmin(frontier_volatility)  # Get the index of the minimum volatility
+    min_vol_return = frontier_returns[min_vol_index]
+    min_vol = frontier_volatility[min_vol_index]
+    min_vol_weights = frontier_weights[min_vol_index]
+    return min_vol_return, min_vol, min_vol_weights
+
+# Step 12: Identify the portfolio with the highest annualized return
+def get_max_return_portfolio(frontier_returns, frontier_volatility, frontier_weights):
+    max_return_index = np.argmax(frontier_returns)  # Get the index of the maximum return
+    max_return = frontier_returns[max_return_index]
+    max_vol = frontier_volatility[max_return_index]
+    max_return_weights = frontier_weights[max_return_index]
+    return max_return, max_vol, max_return_weights
+
+# Get the portfolio with the lowest volatility
+min_vol_return, min_vol, min_vol_weights = get_min_volatility_portfolio(frontier_returns, frontier_volatility, frontier_weights)
+
+# Get the portfolio with the highest return
+max_return, max_vol, max_return_weights = get_max_return_portfolio(frontier_returns, frontier_volatility, frontier_weights)
+
+# Output the portfolio with the lowest volatility
+print("Portfolio with Lowest Volatility:")
+print(f"Annualized Return: {min_vol_return}")
+print(f"Annualized Volatility: {min_vol}")
+print(f"Portfolio Weights: {min_vol_weights}")
+print("----------")
+
+# Output the portfolio with the highest return
+print("Portfolio with Highest Return:")
+print(f"Annualized Return: {max_return}")
+print(f"Annualized Volatility: {max_vol}")
+print(f"Portfolio Weights: {max_return_weights}")
+print("----------")
