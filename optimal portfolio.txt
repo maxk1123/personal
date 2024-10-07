@@ -1,0 +1,71 @@
+import pandas as pd
+import numpy as np
+from scipy.optimize import minimize
+
+# Step 1: Load the CSV files for each stock
+tickers = ['AAPL', 'AMZN', 'GOOGL', 'META', 'MSFT', 'NVDA', 'TSLA']
+data = {}
+
+# Assuming CSV files are named as AAPL.csv, AMZN.csv, etc.
+for ticker in tickers:
+    data[ticker] = pd.read_csv(f'{ticker}.csv', index_col='Date', parse_dates=True)
+
+# Step 2: Concatenate 'Close' prices from each DataFrame
+close_prices = pd.DataFrame({ticker: data[ticker]['Close'] for ticker in tickers})
+
+# Step 3: Calculate daily returns
+returns = close_prices.pct_change().dropna()
+
+# Step 4: Calculate the mean returns and covariance matrix of returns
+mean_returns = returns.mean()
+cov_matrix = returns.cov()
+
+# Step 5: Portfolio optimization function
+def portfolio_performance(weights, mean_returns, cov_matrix):
+    """
+    Function to calculate portfolio performance (return and volatility)
+    """
+    portfolio_return = np.dot(weights, mean_returns)
+    portfolio_volatility = np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights)))
+    return portfolio_return, portfolio_volatility
+
+def minimize_volatility(weights, mean_returns, cov_matrix, target_return):
+    """
+    Minimize the volatility for a given target return
+    """
+    # Calculate portfolio performance
+    portfolio_return, portfolio_volatility = portfolio_performance(weights, mean_returns, cov_matrix)
+    # Add penalty if portfolio return deviates from the target return
+    return portfolio_volatility if portfolio_return >= target_return else np.inf
+
+# Step 6: Define constraints and bounds
+def get_portfolio_optimization(mean_returns, cov_matrix, target_return):
+    num_assets = len(mean_returns)
+    args = (mean_returns, cov_matrix)
+    
+    # Constraints: Sum of weights should be 1 (fully invested portfolio), and the return should be the target return
+    constraints = ({'type': 'eq', 'fun': lambda weights: np.sum(weights) - 1},  # Sum of weights == 1
+                   {'type': 'eq', 'fun': lambda weights: portfolio_performance(weights, mean_returns, cov_matrix)[0] - target_return})  # Return == target_return
+    
+    # Bounds for weights (between 0 and 1)
+    bounds = tuple((0, 1) for asset in range(num_assets))
+    
+    # Initial guess (equal weighting)
+    initial_weights = num_assets * [1. / num_assets,]
+    
+    # Optimization: Minimize portfolio volatility
+    optimized_result = minimize(minimize_volatility, initial_weights, args=args, method='SLSQP', bounds=bounds, constraints=constraints)
+    
+    return optimized_result
+
+# Step 7: Optimize portfolio for a given target return (example: 0.001 or 0.1% daily return)
+target_return = 0.001
+optimal_portfolio = get_portfolio_optimization(mean_returns, cov_matrix, target_return)
+
+# Step 8: Print the optimized weights and portfolio performance
+optimal_weights = optimal_portfolio.x
+portfolio_return, portfolio_volatility = portfolio_performance(optimal_weights, mean_returns, cov_matrix)
+
+print(f"Optimized Weights: {optimal_weights}")
+print(f"Expected Portfolio Return: {portfolio_return}")
+print(f"Expected Portfolio Volatility: {portfolio_volatility}")
