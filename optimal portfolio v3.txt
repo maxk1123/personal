@@ -1,0 +1,106 @@
+import pandas as pd
+import numpy as np
+from scipy.optimize import minimize
+import matplotlib.pyplot as plt
+
+# Step 1: Load the CSV files for each stock
+tickers = ['AAPL', 'AMZN', 'GOOGL', 'META', 'MSFT', 'NVDA', 'TSLA']
+data = {}
+
+# Assuming CSV files are named as AAPL.csv, AMZN.csv, etc.
+for ticker in tickers:
+    data[ticker] = pd.read_csv(f'{ticker}.csv', index_col='Date', parse_dates=True)
+
+# Step 2: Concatenate 'Close' prices from each DataFrame
+close_prices = pd.DataFrame({ticker: data[ticker]['Close'] for ticker in tickers})
+
+# Step 3: Calculate daily returns
+returns = close_prices.pct_change().dropna()
+
+# Step 4: Print the correlation matrix of stock returns
+correlation_matrix = returns.corr()
+print("Correlation Matrix:")
+print(correlation_matrix)
+
+# Step 5: Annualize the mean returns and covariance matrix
+mean_returns = returns.mean() * 252  # Multiply by 252 to annualize
+cov_matrix = returns.cov() * 252  # Annualize the covariance matrix as well
+
+# Step 6: Portfolio performance function
+def portfolio_performance(weights, mean_returns, cov_matrix):
+    """
+    Function to calculate annualized portfolio performance (return and volatility)
+    """
+    portfolio_return = np.dot(weights, mean_returns)
+    portfolio_volatility = np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights)))
+    return portfolio_return, portfolio_volatility
+
+def minimize_volatility(weights, mean_returns, cov_matrix, target_return):
+    """
+    Minimize the volatility for a given target return (annualized)
+    """
+    portfolio_return, portfolio_volatility = portfolio_performance(weights, mean_returns, cov_matrix)
+    
+    # Add penalty if portfolio return deviates from the target return
+    if portfolio_return < target_return:
+        return np.inf  # Penalize if return is less than the target
+    return portfolio_volatility  # Minimize volatility otherwise
+
+# Step 7: Define constraints and bounds with a cap of 50% on each stock
+def get_portfolio_optimization(mean_returns, cov_matrix, target_return):
+    num_assets = len(mean_returns)
+    args = (mean_returns, cov_matrix, target_return)
+    
+    # Constraints: Sum of weights must be 1, and portfolio return must equal target return
+    constraints = ({'type': 'eq', 'fun': lambda weights: np.sum(weights) - 1},  # Fully invested portfolio
+                   {'type': 'eq', 'fun': lambda weights: portfolio_performance(weights, mean_returns, cov_matrix)[0] - target_return})  # Target return
+    
+    # Bounds for weights (between 0 and 0.50) to cap individual stock allocation at 50%
+    bounds = tuple((0, 0.50) for asset in range(num_assets))
+    
+    # Initial guess (equal weighting)
+    initial_weights = num_assets * [1. / num_assets,]
+    
+    # Minimize portfolio volatility
+    optimized_result = minimize(minimize_volatility, initial_weights, args=args, method='SLSQP', bounds=bounds, constraints=constraints)
+    
+    return optimized_result
+
+# Step 8: Generate portfolios along the efficient frontier
+def generate_efficient_frontier(mean_returns, cov_matrix, num_portfolios=100):
+    target_returns = np.linspace(mean_returns.min(), mean_returns.max(), num_portfolios)
+    frontier_volatility = []
+    frontier_returns = []
+    frontier_weights = []
+
+    for target_return in target_returns:
+        optimal_portfolio = get_portfolio_optimization(mean_returns, cov_matrix, target_return)
+        optimal_weights = optimal_portfolio.x
+        portfolio_return, portfolio_volatility = portfolio_performance(optimal_weights, mean_returns, cov_matrix)
+        
+        frontier_returns.append(portfolio_return)
+        frontier_volatility.append(portfolio_volatility)
+        frontier_weights.append(optimal_weights)
+
+    return frontier_returns, frontier_volatility, frontier_weights
+
+# Step 9: Plot the efficient frontier
+def plot_efficient_frontier(frontier_returns, frontier_volatility):
+    plt.figure(figsize=(10, 6))
+    plt.plot(frontier_volatility, frontier_returns, 'g-', linewidth=3)
+    plt.title('Efficient Frontier')
+    plt.xlabel('Annualized Volatility (Risk)')
+    plt.ylabel('Annualized Return')
+    plt.show()
+
+# Generate and plot the efficient frontier
+frontier_returns, frontier_volatility, frontier_weights = generate_efficient_frontier(mean_returns, cov_matrix)
+plot_efficient_frontier(frontier_returns, frontier_volatility)
+
+# Step 10: Print out portfolio options
+for i, (ret, vol, weights) in enumerate(zip(frontier_returns, frontier_volatility, frontier_weights)):
+    print(f"Portfolio {i+1}:")
+    print(f"Expected Return: {ret}")
+    print(f"Volatility: {vol}")
+    print(f"Weights: {weights}")
+    print("----------")
